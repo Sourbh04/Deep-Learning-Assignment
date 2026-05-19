@@ -1,130 +1,278 @@
-# DenseNet-169 for Skin Lesion Classification — ISIC 2024
+# 🔬 DenseNet-169 for Skin Lesion Classification — ISIC 2024 (SLICE-3D)
 
-Binary malignant vs. benign classification on the **ISIC 2024 (SLICE-3D)** dataset using **DenseNet-169** implemented in PyTorch.
-
----
-
-## Results
-
-| Metric | Score |
-|---|---|
-| Accuracy | — |
-| Precision | — |
-| Recall | — |
-| F1-Score | — |
-| AUC-ROC | — |
-
-> Fill in after running `evaluate.py`. Results are reported on the held-out test set (15% stratified split).
-
-Model weights: [Download best_densenet169.pth](LINK_TO_RELEASE)
+> **Deep Learning Assignment — 6th Semester, May 2026**
+> Submitted to: **Dr. Baijnath Kaushik**
 
 ---
 
-## Project Structure
+## 👥 Team Members
+
+| Name | Roll Number |
+|------|-------------|
+| Sourbh Sharma | 23BCS089 |
+| Manish Kumar | 23BCS050 |
+| Ayush Patel | 23BCS022 |
+
+---
+
+## 📌 Project Overview
+
+This project implements a **DenseNet-169** convolutional neural network fine-tuned for **binary skin lesion classification** on the [ISIC 2024 – SLICE-3D](https://www.kaggle.com/competitions/isic-2024-challenge) dataset. The task is to classify skin lesion images as either **benign** or **malignant**, a clinically critical problem in early melanoma detection.
+
+The dataset contains **~401,000** binary-labelled dermoscopic crop images, with a significant class imbalance (approximately 24:1 benign-to-malignant ratio). The model is trained end-to-end with strategies to address this imbalance and achieves an **AUC-ROC of 0.9109** on the held-out test set.
+
+---
+
+## 📁 Project Structure
 
 ```
-densenet169-isic2024/
-├── config.py        # All hyperparameters and paths
-├── dataset.py       # ISICDataset, transforms, stratified split
-├── model.py         # DenseNet-169 with custom classification head
-├── train.py         # Training loop (BCE + cosine LR)
-├── evaluate.py      # Test metrics, confusion matrix, ROC curve
-├── requirements.txt
-├── README.md
+densenet169_project/
+├── config.py          # All hyperparameters, paths, and settings
+├── dataset.py         # Dataset class, augmentations, and DataLoader factory
+├── model.py           # DenseNet-169 architecture with custom classification head
+├── train.py           # Training loop with cosine LR scheduling
+├── evaluate.py        # Evaluation, metrics, and plot generation
+├── requirements.txt   # Python dependencies
+├── README.md          # This file
 └── outputs/
-    ├── best_densenet169.pth   # Best model checkpoint
-    ├── history.json           # Training history
-    ├── confusion_matrix.png
-    ├── roc_curve.png
-    └── loss_acc_curves.png
+    ├── best_densenet169.pth     # Best model checkpoint (by val AUC)
+    ├── history.json             # Training loss/accuracy history
+    ├── test_results.json        # Final test metrics
+    ├── confusion_matrix.png     # Confusion matrix plot
+    └── roc_curve.png            # ROC curve plot
 ```
 
 ---
 
-## Setup
+## 🏗️ Model Architecture
 
-### 1. Clone & Install
+**Backbone:** DenseNet-169 pretrained on ImageNet-1K (torchvision)
+
+- 4 Dense Blocks: [6, 12, 32, 32] layers, growth rate k = 32
+- Transition layers: BatchNorm → Conv 1×1 → AvgPool 2×2
+- Final feature map: **1664 channels** at 7×7 (for 224×224 input)
+
+**Custom Classification Head:**
+```
+Dropout(0.4) → Linear(1664 → 512) → ReLU → Dropout(0.4) → Linear(512 → 1)
+```
+
+- Output: Raw logit → sigmoid for probability
+- Total parameters: **13,337,473** (all trainable)
+
+---
+
+## 📊 Dataset
+
+| Split | Total | Malignant | Benign |
+|-------|-------|-----------|--------|
+| Train | 280,741 | 275 | 280,466 |
+| Val | 60,159 | 59 | 60,100 |
+| Test | 60,159 | 59 | 60,100 |
+
+- **Source:** [Kaggle – ISIC 2024 Challenge](https://www.kaggle.com/competitions/isic-2024-challenge)
+- **Images:** JPEG dermoscopic crops (224×224 resized)
+- **Labels:** Binary — `0` = Benign, `1` = Malignant
+- **Class imbalance ratio:** ~24:1 (benign:malignant)
+
+### Handling Class Imbalance
+
+Two complementary strategies are used:
+
+1. **`WeightedRandomSampler`** — oversamples the minority (malignant) class each epoch so batches are approximately balanced
+2. **`BCEWithLogitsLoss(pos_weight=24.0)`** — applies a 24× higher penalty for false negatives during loss computation
+
+---
+
+## 🔄 Data Augmentation
+
+**Training:**
+- Random horizontal & vertical flips (p=0.5 each)
+- Random rotation (±15°)
+- Color jitter (brightness, contrast, saturation, hue)
+- Random affine translation (±5%)
+- ImageNet normalization
+
+**Validation / Test:**
+- Resize to 224×224
+- ImageNet normalization only
+
+---
+
+## ⚙️ Training Configuration
+
+| Hyperparameter | Value |
+|----------------|-------|
+| Image size | 224×224 |
+| Batch size | 32 |
+| Epochs | 30 |
+| Optimizer | Adam |
+| Learning rate | 1e-4 |
+| Weight decay | 1e-4 |
+| LR scheduler | CosineAnnealingLR |
+| Loss function | BCEWithLogitsLoss |
+| pos_weight | 24.0 |
+| Dropout | 0.4 |
+| Seed | 42 |
+| Device | CUDA (Tesla P100-PCIE-16GB on Kaggle) |
+
+Best model checkpoint is saved based on **validation AUC-ROC**.
+
+---
+
+## 📈 Results
+
+### Test Set Metrics
+
+| Metric | Value |
+|--------|-------|
+| **AUC-ROC** | **0.9109** |
+| Accuracy | 0.8225 |
+| Precision | 0.0046 |
+| Recall (Sensitivity) | 0.8305 |
+| F1-Score | 0.0091 |
+| Decision Threshold (Youden J) | ~7.75e-05 |
+
+> ⚠️ **Note on Precision/F1:** The extremely low precision and F1 reflect the severe class imbalance (only 59 malignant cases out of 60,159 test samples). The model correctly flags **83% of malignant cases (recall)** and achieves a strong **AUC of 0.91**, which is the primary metric for this task in clinical screening.
+
+### Confusion Matrix
+
+|  | Predicted Benign | Predicted Malignant |
+|--|-----------------|-------------------|
+| **True Benign** | 49,432 (TN) | 10,668 (FP) |
+| **True Malignant** | 10 (FN) | 49 (TP) |
+
+### ROC Curve
+
+The model achieves **AUC = 0.9109**, indicating strong discriminative ability despite the extreme class imbalance.
+
+---
+
+## 🚀 How to Run
+
+### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/densenet169-isic2024.git
-cd densenet169-isic2024
+git clone https://github.com/Sourbh04/Deep-Learning-Assignment.git
+cd Deep-Learning-Assignment
+```
+
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Download Dataset (Kaggle API)
+Or manually:
 
 ```bash
-# Install kaggle CLI and place kaggle.json in ~/.kaggle/
-kaggle competitions download -c isic-2024-challenge
-unzip isic-2024-challenge.zip -d ./data/isic2024
+pip install torch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 --index-url https://download.pytorch.org/whl/cu121
+pip install pandas scikit-learn pillow tqdm matplotlib seaborn
 ```
 
-### 3. Train
+### 3. Download the Dataset
+
+You need a Kaggle API token (`~/.kaggle/kaggle.json`).
+
+```bash
+kaggle competitions download -c isic-2024-challenge
+mkdir -p data/isic2024
+unzip -oq isic-2024-challenge.zip -d data/isic2024
+```
+
+Expected structure:
+```
+data/isic2024/
+├── train-metadata.csv
+└── train-image/
+    └── image/
+        ├── ISIC_0000000.jpg
+        ├── ISIC_0000001.jpg
+        └── ...
+```
+
+### 4. Train the Model
 
 ```bash
 python train.py
 ```
 
-### 4. Evaluate
+This will:
+- Perform a stratified 70/15/15 train/val/test split
+- Train DenseNet-169 for 30 epochs
+- Save the best checkpoint to `outputs/best_densenet169.pth`
+- Save training history to `outputs/history.json`
+
+### 5. Evaluate the Model
 
 ```bash
 python evaluate.py
 ```
 
----
-
-## Architecture
-
-DenseNet-169 uses **dense connectivity**: each layer `l` receives feature maps from **all preceding layers** within a dense block as input. With growth rate k=32 and 4 dense blocks (6, 12, 32, 32 layers), the model has ~14M parameters.
-
-**Custom head:**
-```
-features (DenseNet backbone)
-  → AdaptiveAvgPool2d(1)
-  → Flatten
-  → Dropout(0.4)
-  → Linear(1664 → 512) → ReLU
-  → Dropout(0.4)
-  → Linear(512 → 1)   ← raw logit
-```
+This will:
+- Load the best checkpoint
+- Find the optimal decision threshold using Youden's J statistic on the validation set
+- Run inference on the test set
+- Print metrics and save plots to `outputs/`
 
 ---
 
-## Key Decisions
+## 🔧 Running on Kaggle
 
-| Design Choice | Rationale |
-|---|---|
-| Pretrained on ImageNet | Transfer learning critical for limited medical data |
-| Weighted BCE loss (pos_weight≈24) | ISIC 2024 is ~4% malignant — severe class imbalance |
-| WeightedRandomSampler | Oversamples malignant cases each epoch |
-| Cosine LR schedule | Smooth convergence without manual LR tuning |
-| Youden's J threshold | Optimises sensitivity + specificity jointly |
-| Stratified 70/15/15 split | Preserves class ratio across all three sets |
+This project was developed and run on **Kaggle Notebooks** (Tesla P100-PCIE-16GB GPU).
+
+```python
+# Copy project files
+!cp -r /kaggle/input/datasets/sourbhsharma23bcs089/densenet169-project/densenet169_project /kaggle/working/project
+%cd /kaggle/working/project
+
+# Download dataset
+!kaggle competitions download -c isic-2024-challenge
+!mkdir -p data/isic2024
+!unzip -oq isic-2024-challenge.zip -d data/isic2024
+
+# Fix torchvision ColorJitter hue bug (if needed on older environments)
+!sed -i 's/hue=[^,)]*/hue=0.0/g' /kaggle/working/project/dataset.py
+
+# Train
+!python train.py
+
+# Evaluate
+!python evaluate.py
+```
+
+> **Note:** The initial run encountered a `torch.AcceleratorError` due to CUDA version mismatch (cu128 vs cu121). This was resolved by reinstalling `torch==2.3.0+cu121`. A separate `OverflowError` in `ColorJitter` (hue parameter out of uint8 bounds) was fixed by setting `hue=0.0`.
 
 ---
 
-## Dataset
+## 🧠 Key Design Decisions
 
-**ISIC 2024 Challenge (SLICE-3D)**
-- 401,059 skin lesion crops
-- Binary labels: malignant (1) vs. benign (0)
-- Source: https://challenge2024.isic-archive.com/
+### Why DenseNet-169?
+- Dense connections encourage feature reuse and gradient flow — ideal for fine-grained texture classification in dermoscopy
+- Pre-trained ImageNet weights provide strong low-level feature extractors (edges, textures) transferable to skin lesion images
+- DenseNet-169 offers a good balance between depth (1664-dim feature vector) and parameter efficiency vs. larger variants
+
+### Why AUC-ROC as the Primary Metric?
+In clinical screening, **missing a malignant lesion (false negative) is far more costly** than a false alarm. AUC-ROC evaluates the model across all thresholds and is robust to class imbalance, making it the standard metric for this competition and similar medical imaging tasks.
+
+### Threshold Tuning
+Rather than using a fixed 0.5 threshold, the optimal threshold is found on the **validation set** using **Youden's J statistic** (maximizes sensitivity + specificity − 1), which is more principled for imbalanced datasets.
 
 ---
 
-## Citation
+## 📚 References
 
-```
-@misc{isic2024,
-  title  = {ISIC 2024 Challenge: SLICE-3D Skin Lesion Classification},
-  year   = {2024},
-  url    = {https://challenge2024.isic-archive.com/}
-}
+- [ISIC 2024 – Skin Cancer Detection with 3D-TBP Challenge](https://www.kaggle.com/competitions/isic-2024-challenge)
+- Huang, G. et al. (2017). *Densely Connected Convolutional Networks*. CVPR. [arXiv:1608.06993](https://arxiv.org/abs/1608.06993)
+- PyTorch Documentation: [torchvision.models.densenet169](https://pytorch.org/vision/stable/models/densenet.html)
+- Youden, W.J. (1950). *Index for rating diagnostic tests*. Cancer.
 
-@inproceedings{huang2017densely,
-  title     = {Densely Connected Convolutional Networks},
-  author    = {Huang, Gao and Liu, Zhuang and van der Maaten, Laurens and Weinberger, Kilian Q},
-  booktitle = {CVPR},
-  year      = {2017}
-}
-```
+---
+
+## 📄 License
+
+This project is submitted as an academic assignment. Code is for educational purposes only.
+
+---
+
+*Assignment submitted for: Deep Learning (6th Semester) — May 2026 | Instructor: Dr. Baijnath Kaushik*
