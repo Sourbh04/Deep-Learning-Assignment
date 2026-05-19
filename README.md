@@ -24,7 +24,7 @@ The objective is to classify dermoscopic skin lesion images into:
 - **Benign**
 - **Malignant**
 
-The entire workflow — including preprocessing, augmentation, model training, validation, threshold tuning, and evaluation — is implemented inside a single Jupyter Notebook.
+The complete implementation — including preprocessing, augmentation, model training, validation, threshold optimization, and evaluation — is contained inside a single Jupyter Notebook.
 
 ---
 
@@ -36,8 +36,8 @@ DenseNet-169 was selected because of:
 
 - Efficient feature reuse through dense connections
 - Strong gradient flow in deep networks
-- Good transfer learning performance using pretrained ImageNet weights
-- Strong performance in medical image classification tasks
+- Strong transfer learning capability using pretrained ImageNet weights
+- Excellent performance in medical image classification tasks
 
 ### Classification Head
 
@@ -73,7 +73,7 @@ https://www.kaggle.com/competitions/isic-2024-challenge
 
 ## ⚖️ Handling Class Imbalance
 
-Since the dataset is highly imbalanced, two strategies were used:
+Because the dataset is highly imbalanced, two techniques were used:
 
 ### WeightedRandomSampler
 Oversamples malignant samples during training.
@@ -84,7 +84,7 @@ Oversamples malignant samples during training.
 BCEWithLogitsLoss(pos_weight=torch.tensor([24.0]))
 ```
 
-This increases the penalty for malignant misclassification.
+This assigns a higher penalty to malignant misclassification.
 
 ---
 
@@ -121,43 +121,72 @@ This increases the penalty for malignant misclassification.
 
 ---
 
-## 📈 Evaluation Metrics
+## 📈 Model Performance
 
-The model was evaluated using:
+### Final Evaluation Metrics
 
-- Accuracy
-- Precision
-- Recall
-- F1-Score
-- ROC-AUC Score
-- Confusion Matrix
+| Metric | Value |
+|--------|-------|
+| ROC-AUC | **0.9109** |
+| Accuracy | 0.8225 |
+| Recall | 0.8305 |
+| Precision | 0.0046 |
+| F1-Score | 0.0091 |
 
-### Final ROC-AUC
+### Confusion Matrix
 
-```text
-AUC = 0.9109
-```
+|  | Predicted Benign | Predicted Malignant |
+|--|------------------|---------------------|
+| True Benign | 49,432 | 10,668 |
+| True Malignant | 10 | 49 |
 
-Despite severe class imbalance, the model achieved strong discriminative performance for malignant lesion detection.
+### Key Observation
+
+Despite the extreme class imbalance, the model successfully identified most malignant lesions and achieved a strong ROC-AUC score.
 
 ---
 
-## 📓 Notebook Contents
+## 📂 Repository Contents
 
-The notebook includes:
+```text
+Deep-Learning-Assignment/
+│
+├── DenseNet169_ISIC2024.ipynb
+└── README.md
+```
+
+---
+
+## 📓 Notebook Features
+
+The notebook contains:
 
 - Environment setup
 - Dataset download using Kaggle API
-- Data preprocessing
+- Data preprocessing pipeline
 - Train/validation/test split
 - Data augmentation
-- DenseNet-169 model definition
-- Training loop implementation
+- DenseNet-169 implementation
+- Model training loop
 - Validation and testing
 - Threshold optimization using Youden’s J statistic
 - ROC Curve generation
 - Confusion Matrix generation
-- Final metric evaluation
+- Final evaluation metrics
+
+---
+
+## 🏆 Outputs Generated
+
+The notebook generates:
+
+- Trained DenseNet-169 model
+- Training & validation metrics
+- ROC-AUC evaluation
+- Confusion Matrix
+- ROC Curve visualization
+- Threshold optimization results
+- Final test predictions and performance metrics
 
 ---
 
@@ -185,13 +214,13 @@ kaggle competitions download -c isic-2024-challenge
 
 ### 4. Open Notebook
 
-Run the notebook:
+Run:
 
 ```bash
 jupyter notebook DenseNet169_ISIC2024.ipynb
 ```
 
-or upload it directly to **Kaggle Notebooks**.
+or upload directly to **Kaggle Notebooks**.
 
 ---
 
